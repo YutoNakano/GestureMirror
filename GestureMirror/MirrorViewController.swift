@@ -25,7 +25,10 @@ class MirrorViewController: UIViewController {
     var firstTouchPoint: CGPoint = .zero
     let maxZoomScale: CGFloat = 6.0
     let minZoomScale: CGFloat = 1.0
+    let maxBrightScale: CGFloat = 1
+    let minBrightScale: CGFloat = 0
     var oldZoomScale: CGFloat = 1.0
+    var oldbrightnessScale: CGFloat = 1.0
     
     
     override func viewDidLoad() {
@@ -120,17 +123,23 @@ extension MirrorViewController {
         try innerCamera?.lockForConfiguration()
         let touchPoint = recognizer.location(in: view.window)
         var movementPortlate = (touchPoint.y - firstTouchPoint.y) / 50
-//        var movementLandscape =
+        var movementLandscape = (touchPoint.x - firstTouchPoint.x) / 100
         guard let zoomFactor = innerCamera?.videoZoomFactor else { return }
         var currentZoomScale: CGFloat = zoomFactor
         
-        guard let brightness = innerCamera?.iso else { return }
-        var currentISO: Float = brightness
+        let brightness = UIScreen.main.brightness
+        var currentBrightness = brightness
         
         if movementPortlate < minZoomScale {
             movementPortlate = minZoomScale
         } else if movementPortlate > maxZoomScale {
             movementPortlate = maxZoomScale
+        }
+        
+        if movementLandscape < minBrightScale {
+            movementLandscape = minBrightScale
+        } else if movementLandscape > maxBrightScale {
+            movementLandscape = maxBrightScale
         }
         
         switch recognizer.state {
@@ -139,13 +148,16 @@ extension MirrorViewController {
             print("タップスタート\(movementPortlate)")
         case .changed:
             currentZoomScale = movementPortlate
+            currentBrightness = movementLandscape
             print("移動中\(movementPortlate)")
         case .cancelled, .ended:
             oldZoomScale = movementPortlate
+            oldbrightnessScale = movementLandscape
             print("終了\(movementPortlate)")
         default: ()
         }
             innerCamera?.videoZoomFactor = currentZoomScale
+            UIScreen.main.brightness = currentBrightness
             innerCamera?.unlockForConfiguration()
         } catch let error as NSError {
             print(error.description)
