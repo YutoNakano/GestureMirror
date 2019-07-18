@@ -30,6 +30,9 @@ class MirrorViewController: UIViewController {
     var oldZoomScale: CGFloat = 1.0
     var oldbrightnessScale: CGFloat = 1.0
     
+    var isRunning = true
+    var isReverse = false
+    
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -39,6 +42,8 @@ class MirrorViewController: UIViewController {
         setupPreviewLayer()
         captureSession.startRunning()
         portlateSwipeConfig()
+        singleTapConfig()
+        doubleTapConfig()
     }
 
 }
@@ -162,5 +167,48 @@ extension MirrorViewController {
         } catch let error as NSError {
             print(error.description)
         }
+    }
+    
+    func singleTapConfig() {
+        let singleTappGesture = UITapGestureRecognizer(target: self, action: #selector(singleTapped))
+        singleTappGesture.numberOfTapsRequired = 1
+        singleTappGesture.delegate = self
+        view.addGestureRecognizer(singleTappGesture)
+    }
+    
+    @objc func singleTapped() {
+        if isRunning {
+            captureSession.stopRunning()
+            isRunning = false
+        } else {
+            captureSession.startRunning()
+            isRunning = true
+        }
+    }
+    
+    func doubleTapConfig() {
+        let doubleTapGesture = UITapGestureRecognizer(target: self, action: #selector(doubleTapped))
+        doubleTapGesture.numberOfTapsRequired = 2
+        doubleTapGesture.delegate = self
+        view.addGestureRecognizer(doubleTapGesture)
+    }
+    
+    @objc func doubleTapped() {
+        
+        if isReverse {
+            view.transform = CGAffineTransform(scaleX: -1, y: 1)
+            isReverse = false
+        } else {
+            view.transform = .identity
+            isReverse = true
+        }
+    }
+    
+    }
+
+
+extension MirrorViewController: UIGestureRecognizerDelegate {
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith otherGestureRecognizer: UIGestureRecognizer) -> Bool {
+        return true
     }
 }
