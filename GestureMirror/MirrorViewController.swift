@@ -31,16 +31,32 @@ class MirrorViewController: UIViewController {
     var oldbrightnessScale: CGFloat = 1.0
     
     var isRunning = true
-    var isReverse = false
+    var isReverse = true
     
     lazy var normalImageView: UIImageView = {
         let v = UIImageView(image: UIImage(named: "normal"))
+        v.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(v)
         return v
     }()
     
     lazy var reverseImageView: UIImageView = {
         let v = UIImageView(image: UIImage(named: "reverse"))
+        v.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(v)
+        return v
+    }()
+    
+    lazy var stopImageView: UIImageView = {
+        let v = UIImageView(image: UIImage(named: "stop"))
+        v.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(v)
+        return v
+    }()
+    
+    lazy var reverseStopImageView: UIImageView = {
+        let v = UIImageView(image: UIImage(named: "reverse_stop"))
+        v.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(v)
         return v
     }()
@@ -56,11 +72,24 @@ class MirrorViewController: UIViewController {
         singleTapConfig()
         doubleTapConfig()
         makeConstraints()
+        
+        reverseImageView.isHidden = true
+        stopImageView.isHidden = true
+        reverseStopImageView.isHidden = true
     }
 
     func makeConstraints() {
         normalImageView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor).isActive = true
-        normalImageView.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 30).isActive = true
+        normalImageView.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 50).isActive = true
+        
+        reverseImageView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor).isActive = true
+        reverseImageView.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 50).isActive = true
+        
+        stopImageView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor).isActive = true
+        stopImageView.centerYAnchor.constraint(equalTo: self.view.centerYAnchor).isActive = true
+        
+//        reverseStopImageView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor).isActive = true
+//        reverseStopImageView.centerYAnchor.constraint(equalTo: self.view.centerYAnchor).isActive = true
     }
 }
 
@@ -194,9 +223,11 @@ extension MirrorViewController {
     
     @objc func singleTapped() {
         if isRunning {
+            stopImageView.isHidden = false
             captureSession.stopRunning()
             isRunning = false
         } else {
+            stopImageView.isHidden = true
             captureSession.startRunning()
             isRunning = true
         }
@@ -212,9 +243,13 @@ extension MirrorViewController {
     @objc func doubleTapped() {
         
         if isReverse {
+            normalImageView.isHidden = true
+            reverseImageView.isHidden = false
             view.transform = CGAffineTransform(scaleX: -1, y: 1)
             isReverse = false
         } else {
+            normalImageView.isHidden = false
+            reverseImageView.isHidden = true
             view.transform = .identity
             isReverse = true
         }
