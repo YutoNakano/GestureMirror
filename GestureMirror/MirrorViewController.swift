@@ -33,6 +33,17 @@ class MirrorViewController: UIViewController {
     var isRunning = true
     var isReverse = false
     
+    lazy var normalImageView: UIImageView = {
+        let v = UIImageView(image: UIImage(named: "normal"))
+        view.addSubview(v)
+        return v
+    }()
+    
+    lazy var reverseImageView: UIImageView = {
+        let v = UIImageView(image: UIImage(named: "reverse"))
+        view.addSubview(v)
+        return v
+    }()
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -44,8 +55,13 @@ class MirrorViewController: UIViewController {
         portlateSwipeConfig()
         singleTapConfig()
         doubleTapConfig()
+        makeConstraints()
     }
 
+    func makeConstraints() {
+        normalImageView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor).isActive = true
+        normalImageView.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 30).isActive = true
+    }
 }
 
 //MARK: AVCapturePhotoCaptureDelegateデリゲートメソッド
