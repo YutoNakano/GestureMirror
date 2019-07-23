@@ -26,12 +26,29 @@ class MirrorViewController: UIViewController {
     let maxZoomScale: CGFloat = 6.0
     let minZoomScale: CGFloat = 1.0
     let maxBrightScale: CGFloat = 1
-    let minBrightScale: CGFloat = 0
+    let minBrightScale: CGFloat = -1
     var oldZoomScale: CGFloat = 1.0
     var oldbrightnessScale: CGFloat = 1.0
     
     var isRunning = true
     var isReverse = true
+    var isFirst = true
+    
+    lazy var zoomSlider: UISlider = {
+        let v = UISlider(frame: CGRect(x:0, y:0, width:200, height:30))
+//        v.layer.position = CGPoint(x:self.view.frame.midX, y:500)
+        v.backgroundColor = UIColor.white
+        v.layer.masksToBounds = true
+        v.isHidden = true
+        v.layer.cornerRadius = 10.0
+        v.layer.shadowOpacity = 0.5
+        v.minimumValue = 1
+        v.maximumValue = 3
+        v.transform = CGAffineTransform(rotationAngle: -CGFloat.pi / 2)
+        v.addTarget(self, action: #selector(zoomSliderSwiped(slider:)), for: .valueChanged)
+        view.addSubview(v)
+        return v
+    }()
     
     lazy var normalImageView: UIImageView = {
         let v = UIImageView(image: UIImage(named: "normal"))
@@ -54,42 +71,43 @@ class MirrorViewController: UIViewController {
         return v
     }()
     
-    lazy var reverseStopImageView: UIImageView = {
-        let v = UIImageView(image: UIImage(named: "reverse_stop"))
-        v.translatesAutoresizingMaskIntoConstraints = false
-        view.addSubview(v)
-        return v
-    }()
-    
     override func viewDidLoad() {
         super.viewDidLoad()
         setupCaptureSession()
         setupDevice()
-        setupInputOutput()
         setupPreviewLayer()
-        captureSession.startRunning()
-        portlateSwipeConfig()
+        setupInputOutput()
         singleTapConfig()
         doubleTapConfig()
         makeConstraints()
+        startCapture()
+        portlateSwipeGestureConfig()
         
         reverseImageView.isHidden = true
         stopImageView.isHidden = true
-        reverseStopImageView.isHidden = true
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        setUpSliderInitialValue()
     }
 
     func makeConstraints() {
-        normalImageView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor).isActive = true
-        normalImageView.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 50).isActive = true
+        
+//        zoomSlider.widthAnchor.constraint(equalToConstant: 100)
+//        zoomSlider.heightAnchor.constraint(equalToConstant: 40)
+//        zoomSlider.centerXAnchor.constraint(equalTo: self.view.centerXAnchor).isActive = true
+//        zoomSlider.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 100).isActive = true
         
         reverseImageView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor).isActive = true
         reverseImageView.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 50).isActive = true
         
+        normalImageView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor).isActive = true
+        normalImageView.topAnchor.constraint(equalTo: self.view.topAnchor, constant: 50).isActive = true
+        
+        
         stopImageView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor).isActive = true
         stopImageView.centerYAnchor.constraint(equalTo: self.view.centerYAnchor).isActive = true
-        
-//        reverseStopImageView.centerXAnchor.constraint(equalTo: self.view.centerXAnchor).isActive = true
-//        reverseStopImageView.centerYAnchor.constraint(equalTo: self.view.centerYAnchor).isActive = true
     }
 }
 
@@ -146,6 +164,14 @@ extension MirrorViewController{
         }
     }
     
+    func startCapture() {
+        guard !captureSession.isRunning else { return }
+        
+        DispatchQueue.global(qos: .userInitiated).async { [weak self ] in
+            self?.captureSession.startRunning()
+        }
+    }
+    
     // カメラのプレビューを表示するレイヤの設定
     func setupPreviewLayer() {
         // 指定したAVCaptureSessionでプレビューレイヤを初期化
@@ -163,55 +189,33 @@ extension MirrorViewController{
 
 // Gesture設定
 extension MirrorViewController {
-    func portlateSwipeConfig() {
-        let portlateSwipeGesture = UIPanGestureRecognizer(target: self, action: #selector(portlateSwiped(recognizer:)))
+    func setUpSliderInitialValue() {
+        guard let zoomFactor = innerCamera?.videoZoomFactor else { return }
+        zoomSlider.value = Float(zoomFactor)
+    }
+    @objc func zoomSliderSwiped(slider: UISlider){
+        do {
+            try innerCamera?.lockForConfiguration()
+            print(slider.value)
+            innerCamera?.videoZoomFactor = CGFloat(slider.value)
+            innerCamera?.unlockForConfiguration()
+        } catch let error as NSError {
+            print(error)
+        }
+    }
+    
+    func portlateSwipeGestureConfig() {
+        let portlateSwipeGesture = UIPanGestureRecognizer(target: self, action: #selector(portlateSwiped(_:)))
+        portlateSwipeGesture.delegate = self
         view.addGestureRecognizer(portlateSwipeGesture)
     }
     
-    @objc func portlateSwiped(recognizer: UIPanGestureRecognizer) {
-    do {
-        try innerCamera?.lockForConfiguration()
-        let touchPoint = recognizer.location(in: view.window)
-        var movementPortlate = (touchPoint.y - firstTouchPoint.y) / 50
-        var movementLandscape = (touchPoint.x - firstTouchPoint.x) / 100
-        guard let zoomFactor = innerCamera?.videoZoomFactor else { return }
-        var currentZoomScale: CGFloat = zoomFactor
-        
-        let brightness = UIScreen.main.brightness
-        var currentBrightness = brightness
-        
-        if movementPortlate < minZoomScale {
-            movementPortlate = minZoomScale
-        } else if movementPortlate > maxZoomScale {
-            movementPortlate = maxZoomScale
-        }
-        
-        if movementLandscape < minBrightScale {
-            movementLandscape = minBrightScale
-        } else if movementLandscape > maxBrightScale {
-            movementLandscape = maxBrightScale
-        }
-        
-        switch recognizer.state {
-        case .began:
-            firstTouchPoint = touchPoint
-            print("タップスタート\(movementPortlate)")
-        case .changed:
-            currentZoomScale = movementPortlate
-            currentBrightness = movementLandscape
-            print("移動中\(movementPortlate)")
-        case .cancelled, .ended:
-            oldZoomScale = movementPortlate
-            oldbrightnessScale = movementLandscape
-            print("終了\(movementPortlate)")
-        default: ()
-        }
-            innerCamera?.videoZoomFactor = currentZoomScale
-            UIScreen.main.brightness = currentBrightness
-            innerCamera?.unlockForConfiguration()
-        } catch let error as NSError {
-            print(error.description)
-        }
+    @objc func portlateSwiped(_ gesture: UIPanGestureRecognizer) {
+        guard isFirst else { return }
+        isFirst.toggle()
+        zoomSlider.isHidden = false
+        let initialPoint = gesture.location(in: view)
+        zoomSlider.layer.position = initialPoint
     }
     
     func singleTapConfig() {
@@ -221,8 +225,9 @@ extension MirrorViewController {
         view.addGestureRecognizer(singleTappGesture)
     }
     
+    // capturesessionではなく、別の方法を考えたい
     @objc func singleTapped() {
-        if isRunning {
+        if captureSession.isRunning {
             stopImageView.isHidden = false
             captureSession.stopRunning()
             isRunning = false
@@ -245,12 +250,12 @@ extension MirrorViewController {
         if isReverse {
             normalImageView.isHidden = true
             reverseImageView.isHidden = false
-            view.transform = CGAffineTransform(scaleX: -1, y: 1)
+            cameraPreviewLayer?.transform = CATransform3DMakeRotation(CGFloat(M_PI), 0.0, 1.0, 0.0)
             isReverse = false
         } else {
             normalImageView.isHidden = false
             reverseImageView.isHidden = true
-            view.transform = .identity
+            cameraPreviewLayer?.transform = CATransform3DIdentity
             isReverse = true
         }
     }
